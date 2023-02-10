@@ -5,7 +5,6 @@ import numpy
 import argparse
 import heapq
 import struct
-import pprint
 
 img_width = 0
 img_height = 0
@@ -23,7 +22,7 @@ def calc_freq(array):
 
 # Função que constroi a árvore de Huffman
 def build_tree(freqs):
-    heap = [[wt, [sym, ""]] for sym, wt in freqs.items()]
+    heap = [[wt, [sym, '']] for sym, wt in freqs.items()]
     heapq.heapify(heap)
     while len(heap) > 1:
         lo = heapq.heappop(heap)
@@ -99,15 +98,16 @@ def write_data(array, tree, output):
     output.write(write_bit(0, flush=True))
 
 # Função que lê os dados do arquivo
-def read_data(input, tree, num_syms):
+def read_data(input, tree):
     array = []
     codes = [code for sym, code in tree]
-    for i in range(num_syms):
-        byte = read_bit(input)
-        while format(byte, 'b') not in codes:
-            byte = (byte << 1) | read_bit(input)
-        node = tree[codes.index(format(byte, 'b'))][0]
-        array.append(node)
+
+    for i in range(img_height * img_width * (1 if is_gray else 3)):
+        byte = format(read_bit(input), 'b')
+        while byte not in codes:
+            byte += format(read_bit(input), 'b')
+        array.append(byte)
+    
     return array
 
 # Função que comprime a imagem
@@ -139,13 +139,14 @@ if __name__ == '__main__':
         shape = entrada.shape
         img_height = shape[0]
         img_width = shape[1]
+        print(img_height, img_width)
 
         if args.gray:
             is_gray = True
-            entrada = entrada[:,:,0]
+            entrada = entrada.reshape((img_height * img_width))
         else:
             is_gray = False
-            entrada = entrada.reshape(-1).tolist()
+            entrada = entrada.reshape((img_height * img_width * 3))
 
         with open(args.output, 'wb') as output:
             compress(entrada, output)
@@ -154,15 +155,15 @@ if __name__ == '__main__':
         with open(args.input, 'rb') as input:
             freqs = read_header(input)
             tree = build_tree(freqs)
-            array = read_data(input, tree, len(freqs))
+            array = read_data(input, tree)
             if args.gray:
                 array = numpy.asarray(array, numpy.uint8).reshape((img_height, img_width))
             else:
                 array = numpy.asarray(array, numpy.uint8).reshape((img_height, img_width, 3))
  
 
-        # with open(args.output, 'wb') as output:
-        #    Image.fromarray(array).save(output) 
+        with open(args.output, 'wb') as output:
+            Image.fromarray(array).save(output) 
 
     else:
         print('Nenhuma ação especificada. Use -c para comprimir ou -d para descomprimir.')
